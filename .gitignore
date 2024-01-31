@@ -1,0 +1,14 @@
+# Ignored File Directories
+JuceModules/juce_dsp/
+JuceModules/juce_core/
+JuceModules/juce_audio_formats/
+JuceModules/juce_audio_basics/
+.vscode/
+Help/
+.vs/
+
+# Ignored File Types
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+*.sln
