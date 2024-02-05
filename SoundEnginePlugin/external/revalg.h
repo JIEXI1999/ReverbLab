@@ -13,40 +13,24 @@ float randomInRange(float low, float high) {
 
 // This is a simple delay class which rounds to a whole number of samples.
 using Delay = signalsmith::delay::Delay<float, signalsmith::delay::InterpolatorNearest>;
-using Spec = juce::dsp::ProcessSpec;
 
 template<int channels = 8>
 struct MultiChannelMixedFeedback {
 	using Array = std::array<float, channels>;
 	float delayMs = 150;
 	float decayGain = 0.85;
-	juce::dsp::StateVariableTPTFilter<float> filter;
-	bool enable = false;
 
 	std::array<int, channels> delaySamples;
 	std::array<Delay, channels> delays;
 
-	void configure(const Spec& spec) {
-		float delaySamplesBase = delayMs * 0.001 * spec.sampleRate;
+	void configure(float sampleRate) {
+		float delaySamplesBase = delayMs * 0.001 * sampleRate;
 		for (int c = 0; c < channels; ++c) {
 			float r = c * 1.0 / channels;
 			delaySamples[c] = std::pow(2, r) * delaySamplesBase;
 			delays[c].resize(delaySamples[c] + 1);
 			delays[c].reset();
 		}
-	}
-
-	void setupFilter(const Spec& spec) {
-		filter.prepare(spec);
-		filter.reset();
-		filter.setType(StateVariableTPTFilterType::lowpass);
-		filter.setCutoffFrequency(20000.f);
-	}
-
-	void setFilterCutoff(float damping) {
-		enable = true;
-		filter.setCutoffFrequency(damping);
-		if (damping > 19500.f) { enable = false; }
 	}
 
 
@@ -61,16 +45,7 @@ struct MultiChannelMixedFeedback {
 		Householder<float, channels>::inPlace(mixed.data());
 
 		for (int c = 0; c < channels; ++c) {
-			float sum;
-			if (enable) {
-				float filteredSample;
-				filteredSample = filter.processSample(0, mixed[c]);
-				sum = input[c] + filteredSample * decayGain;
-			}
-			else {
-				sum = input[c] + mixed[c] * decayGain;
-			}
-			
+			float sum = input[c] + mixed[c] * decayGain;
 			delays[c].write(sum);
 		}
 
@@ -178,9 +153,14 @@ struct DiffuserHalfLengths {
 template<int channels = 8, int diffusionSteps = 5>
 struct BasicReverb {
 	using Array = std::array<float, channels>;
+	using Spec = juce::dsp::ProcessSpec;
 
+	Spec reverbSpec;
 	MultiChannelMixedFeedback<channels> feedback;
 	DiffuserHalfLengths<channels, diffusionSteps> diffuser;
+	juce::dsp::FirstOrderTPTFilter<float> filter;
+	bool enable = false;
+
 	float dry, wet,rt60, roomSizeMs, sampleRate;
 
 	BasicReverb(float roomSizeMs, float rt60, float dry = 0, float wet = 1) 
@@ -190,10 +170,11 @@ struct BasicReverb {
 	}
 
 	void configure(const Spec& spec) {
-		feedback.configure(spec);
-		feedback.setupFilter(spec);
-		diffuser.configure(spec.sampleRate);
-		this->sampleRate = sampleRate;
+		reverbSpec = spec;
+		feedback.configure(reverbSpec.sampleRate);
+		diffuser.configure(reverbSpec.sampleRate);
+		setupFilter();
+		this->sampleRate = spec.sampleRate;
 	}
 
 	Array process(Array input) {
@@ -201,9 +182,20 @@ struct BasicReverb {
 		Array longLasting = feedback.process(diffuse);
 		Array output;
 		for (int c = 0; c < channels; ++c) {
-			output[c] = dry * input[c] + wet * longLasting[c];
+			if (enable){
+				float filteredOutput = filter.processSample(c%2, longLasting[c]);
+				output[c] = dry * input[c] + wet * filteredOutput;
+			}
+			else { output[c] = dry * input[c] + wet * longLasting[c]; }
 		}
 		return output;
+	}
+
+	void setupFilter() {
+		filter.prepare(reverbSpec);
+		filter.reset();
+		filter.setType(juce::dsp::FirstOrderTPTFilterType::lowpass);
+		filter.setCutoffFrequency(20000.f);
 	}
 
 	void setRt60(float newRt60) {
@@ -212,8 +204,18 @@ struct BasicReverb {
 	}
 
 	void setDamping(float damping) {
-		
-		feedback.setFilterCutoff(damping);
+		enable = true;
+		filter.setCutoffFrequency(damping);
+		if (damping > 19500.f) { enable = false; }
+	}
+
+	void setGeometry(float geometry) {
+		roomSizeMs = geometry;
+		feedback.delayMs = roomSizeMs;
+		//diffuser.stepDelayUpadate(roomSizeMs);
+		//diffuser.configure(reverbSpec.sampleRate);
+		feedback.configure(reverbSpec.sampleRate);
+		updateDecayGain();
 	}
 
 private:

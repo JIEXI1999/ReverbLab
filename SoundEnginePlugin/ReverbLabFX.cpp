@@ -117,6 +117,10 @@ void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
         {
             reverb.setRt60(m_pParams->RTPC.fRT);
         }
+        //if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_ROOMSIZE_ID))
+        //{
+        //    reverb.setGeometry(m_pParams->RTPC.fRoomSize);
+        //}
         if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_DAMPING_ID))
         {
             reverb.setDamping(m_pParams->RTPC.fDamping);
