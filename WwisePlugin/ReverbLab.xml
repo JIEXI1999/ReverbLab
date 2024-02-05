@@ -41,19 +41,58 @@ for the documentation about the plugin xml format
     </PluginInfo>
     <Properties>
       <!-- Add your property definitions here -->
-      <Property Name="Placeholder" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Placeholder">
-        <UserInterface Step="0.1" Fine="0.001" Decimals="3" UIMax="10" />
-        <DefaultValue>0.0</DefaultValue>
+      <Property Name="RT" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Reverberation Time">
+        <UserInterface Step="0.1" Fine="0.01" Decimals="2" UIMax="5" />
+        <DefaultValue>0.5</DefaultValue>
         <AudioEnginePropertyID>0</AudioEnginePropertyID>
         <Restrictions>
           <ValueRestriction>
             <Range Type="Real32">
-              <Min>0.001</Min>
-              <Max>1000</Max>
+              <Min>0.1</Min>
+              <Max>5.0</Max>
             </Range>
           </ValueRestriction>
         </Restrictions>
       </Property>
+		<Property Name="Damping" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Damping">
+			<UserInterface Step="1" Fine="0.1" Decimals="1" UIMax="20000" />
+			<DefaultValue>20000.0</DefaultValue>
+			<AudioEnginePropertyID>1</AudioEnginePropertyID>
+			<Restrictions>
+				<ValueRestriction>
+					<Range Type="Real32">
+						<Min>200.0</Min>
+						<Max>20000.0</Max>
+					</Range>
+				</ValueRestriction>
+			</Restrictions>
+		</Property>
+		<Property Name="RoomSize" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Room Size">
+			<UserInterface Step="1" Fine="0.1" Decimals="1" UIMax="200.0" />
+			<DefaultValue>50.0</DefaultValue>
+			<AudioEnginePropertyID>2</AudioEnginePropertyID>
+			<Restrictions>
+				<ValueRestriction>
+					<Range Type="Real32">
+						<Min>20.0</Min>
+						<Max>200.0</Max>
+					</Range>
+				</ValueRestriction>
+			</Restrictions>
+		</Property>
+		<Property Name="DryWetMix" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Dry/Wet" DisplayGroup="Output">
+			<UserInterface Step="0.05" Fine="0.01" Decimals="2" UIMax="1" />
+			<DefaultValue>0.5</DefaultValue>
+			<AudioEnginePropertyID>3</AudioEnginePropertyID>
+			<Restrictions>
+				<ValueRestriction>
+					<Range Type="Real32">
+						<Min>0.0</Min>
+						<Max>1.0</Max>
+					</Range>
+				</ValueRestriction>
+			</Restrictions>
+		</Property>
     </Properties>
   </EffectPlugin>
 </PluginModule>

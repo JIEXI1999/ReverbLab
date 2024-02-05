@@ -45,7 +45,7 @@ ReverbLabFX::ReverbLabFX()
     : m_pParams(nullptr)
     , m_pAllocator(nullptr)
     , m_pContext(nullptr),
-    reverb(50.0, 2.0, 0.5, 0.5)
+    reverb(24, 2.0, 0.5, 0.5)
 {
 }
 
@@ -63,13 +63,9 @@ AKRESULT ReverbLabFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::IAkEffectPl
     spec.maximumBlockSize = 512;
     spec.sampleRate = in_rFormat.uSampleRate;
     spec.numChannels = 1;
-    filter.prepare(spec);
 
     // Init Filter
-    filter.reset();
-    filter.setType(StateVariableTPTFilterType::lowpass);
-    filter.setCutoffFrequency(300.f);
-    reverb.configure(spec.sampleRate);
+    reverb.configure(spec);
 
     return AK_Success;
 }
@@ -96,7 +92,7 @@ AKRESULT ReverbLabFX::GetPluginInfo(AkPluginInfo& out_rPluginInfo)
 
 void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
 {
-    AkUInt32 totalTailFrames = spec.sampleRate * myParams.DELAYTIME;
+    AkUInt32 totalTailFrames = spec.sampleRate * m_pParams->RTPC.fRT;
     m_FXTailHandler.HandleTail(io_pBuffer, totalTailFrames);
     const AkUInt32 uNumChannels = io_pBuffer->NumChannels();
 
@@ -114,18 +110,30 @@ void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
         {
             AkReal32* AK_RESTRICT pBuf = (AkReal32 * AK_RESTRICT)io_pBuffer->GetChannel(i);
             stereoInput[i] = pBuf[uFramesProcessed];
-            //AkReal32 filteredSample = filter.processSample(0, pBuf[uFramesProcessed]);
-            //pBuf[uFramesProcessed] = filteredSample;
+        }
+        multiChannelMixer.stereoToMulti(stereoInput, multiChannelInput);
+
+        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_RT_ID))
+        {
+            reverb.setRt60(m_pParams->RTPC.fRT);
+        }
+        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_DAMPING_ID))
+        {
+            reverb.setDamping(m_pParams->RTPC.fDamping);
+        }
+        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_DRYWETMIX_ID))
+        {
+            reverb.wet = m_pParams->RTPC.fDryWetMix;
+            reverb.dry = 1.f - reverb.wet;
         }
 
-        multiChannelMixer.stereoToMulti(stereoInput, multiChannelInput);
         multiChannelOutput = reverb.process(multiChannelInput);
-        multiChannelMixer.multiToStereo(multiChannelOutput, stereoOutput);
 
+        multiChannelMixer.multiToStereo(multiChannelOutput, stereoOutput);
         for (AkUInt32 i = 0; i < uNumChannels; ++i)
         {
             AkReal32* AK_RESTRICT pBuf = (AkReal32 * AK_RESTRICT)io_pBuffer->GetChannel(i);
-            pBuf[uFramesProcessed] = static_cast<AkReal32>(stereoOutput[i]);
+            pBuf[uFramesProcessed] = static_cast<AkReal32>(stereoOutput[i])*GAIN_CALIBR;
         }
 
         ++uFramesProcessed;

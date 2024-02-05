@@ -29,11 +29,15 @@ the specific language governing permissions and limitations under the License.
 
 #include "ReverbLabFXParams.h"
 #include "external/delay.h"
-#include "../JuceModules/JuceHeader.h"
+
 #include "external/revalg.h"
 #include "external/mix.h"
 
 #include <AK/Plugin/PluginServices/AkFXTailHandler.h>
+
+#define CHANNELS 8
+#define GAIN_CALIBR (2.0 / CHANNELS) //Calibrate gain based on matrix channels
+#define DIFFUSER_STEPS 5
 
 using namespace juce::dsp;
 
@@ -77,16 +81,8 @@ private:
     AK::IAkPluginMemAlloc* m_pAllocator;
     AK::IAkEffectPluginContext* m_pContext;
 
-    //signalsmith::delay::Delay <AkReal32> DelayLine;
-    StateVariableTPTFilter<AkReal32> filter;
-    signalsmith::mix::StereoMultiMixer<AkReal32, 8> multiChannelMixer;
-    BasicReverb<8, 4> reverb;
-
-    struct ReverbParams
-    {
-        const AkReal32 DELAYTIME = 2.f;
-    };
-    ReverbParams myParams;
+    signalsmith::mix::StereoMultiMixer<AkReal32, CHANNELS> multiChannelMixer;
+    BasicReverb<CHANNELS, DIFFUSER_STEPS> reverb;
 };
 
 #endif // ReverbLabFX_H

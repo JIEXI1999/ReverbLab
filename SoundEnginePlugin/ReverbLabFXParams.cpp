@@ -53,7 +53,10 @@ AKRESULT ReverbLabFXParams::Init(AK::IAkPluginMemAlloc* in_pAllocator, const voi
     if (in_ulBlockSize == 0)
     {
         // Initialize default parameters here
-        RTPC.fPlaceholder = 0.0f;
+        RTPC.fRT = 0.5f; 
+        RTPC.fDamping = 15000.f;
+        RTPC.fRoomSize = 50.f;
+        RTPC.fDryWetMix = 0.5f;
         m_paramChangeHandler.SetAllParamChanges();
         return AK_Success;
     }
@@ -73,7 +76,10 @@ AKRESULT ReverbLabFXParams::SetParamsBlock(const void* in_pParamsBlock, AkUInt32
     AkUInt8* pParamsBlock = (AkUInt8*)in_pParamsBlock;
 
     // Read bank data here
-    RTPC.fPlaceholder = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
+    RTPC.fRT = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
+    RTPC.fDamping = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
+    RTPC.fRoomSize = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
+    RTPC.fDryWetMix = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
     CHECKBANKDATASIZE(in_ulBlockSize, eResult);
     m_paramChangeHandler.SetAllParamChanges();
 
@@ -87,9 +93,21 @@ AKRESULT ReverbLabFXParams::SetParam(AkPluginParamID in_paramID, const void* in_
     // Handle parameter change here
     switch (in_paramID)
     {
-    case PARAM_PLACEHOLDER_ID:
-        RTPC.fPlaceholder = *((AkReal32*)in_pValue);
-        m_paramChangeHandler.SetParamChange(PARAM_PLACEHOLDER_ID);
+    case PARAM_RT_ID:
+        RTPC.fRT = *((AkReal32*)in_pValue);
+        m_paramChangeHandler.SetParamChange(PARAM_RT_ID);
+        break;
+    case PARAM_DAMPING_ID:
+        RTPC.fDamping = *((AkReal32*)in_pValue);
+        m_paramChangeHandler.SetParamChange(PARAM_DAMPING_ID);
+        break;
+    case PARAM_ROOMSIZE_ID:
+        RTPC.fRoomSize = *((AkReal32*)in_pValue);
+        m_paramChangeHandler.SetParamChange(PARAM_ROOMSIZE_ID);
+        break;
+    case PARAM_DRYWETMIX_ID:
+        RTPC.fDryWetMix = *((AkReal32*)in_pValue);
+        m_paramChangeHandler.SetParamChange(PARAM_DRYWETMIX_ID);
         break;
     default:
         eResult = AK_InvalidParameter;

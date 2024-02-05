@@ -1,6 +1,7 @@
 #include "./delay.h"
-
 #include "./mix-matrix.h"
+
+#include "../../JuceModules/JuceHeader.h"
 
 #include <cstdlib>
 
@@ -12,79 +13,21 @@ float randomInRange(float low, float high) {
 
 // This is a simple delay class which rounds to a whole number of samples.
 using Delay = signalsmith::delay::Delay<float, signalsmith::delay::InterpolatorNearest>;
-
-struct SingleChannelFeedback {
-	float delayMs = 80;
-	float decayGain = 0.85;
-
-	int delaySamples;
-	Delay delay;
-
-	void configure(float sampleRate) {
-		delaySamples = delayMs * 0.001 * sampleRate;
-		delay.resize(delaySamples + 1);
-		delay.reset(); // Start with all 0s
-	}
-
-	float process(float input) {
-		float delayed = delay.read(delaySamples);
-
-		float sum = input + delayed * decayGain;
-		delay.write(sum);
-
-		return delayed;
-	}
-};
-
-
-template<int channels = 8>
-struct MultiChannelFeedback {
-	using Array = std::array<float, channels>;
-
-	float delayMs = 150;
-	float decayGain = 0.85;
-
-	std::array<int, channels> delaySamples;
-	std::array<Delay, channels> delays;
-
-	void configure(float sampleRate) {
-		float delaySamplesBase = delayMs * 0.001 * sampleRate;
-		for (int c = 0; c < channels; ++c) {
-			// Distribute delay times exponentially between delayMs and 2*delayMs
-			float r = c * 1.0 / channels;
-			delaySamples[c] = std::pow(2, r) * delaySamplesBase;
-
-			delays[c].resize(delaySamples[c] + 1);
-			delays[c].reset();
-		}
-	}
-
-	Array process(Array input) {
-		Array delayed;
-		for (int c = 0; c < channels; ++c) {
-			delayed[c] = delays[c].read(delaySamples[c]);
-		}
-
-		for (int c = 0; c < channels; ++c) {
-			float sum = input[c] + delayed[c] * decayGain;
-			delays[c].write(sum);
-		}
-
-		return delayed;
-	}
-};
+using Spec = juce::dsp::ProcessSpec;
 
 template<int channels = 8>
 struct MultiChannelMixedFeedback {
 	using Array = std::array<float, channels>;
 	float delayMs = 150;
 	float decayGain = 0.85;
+	juce::dsp::StateVariableTPTFilter<float> filter;
+	bool enable = false;
 
 	std::array<int, channels> delaySamples;
 	std::array<Delay, channels> delays;
 
-	void configure(float sampleRate) {
-		float delaySamplesBase = delayMs * 0.001 * sampleRate;
+	void configure(const Spec& spec) {
+		float delaySamplesBase = delayMs * 0.001 * spec.sampleRate;
 		for (int c = 0; c < channels; ++c) {
 			float r = c * 1.0 / channels;
 			delaySamples[c] = std::pow(2, r) * delaySamplesBase;
@@ -92,6 +35,20 @@ struct MultiChannelMixedFeedback {
 			delays[c].reset();
 		}
 	}
+
+	void setupFilter(const Spec& spec) {
+		filter.prepare(spec);
+		filter.reset();
+		filter.setType(StateVariableTPTFilterType::lowpass);
+		filter.setCutoffFrequency(20000.f);
+	}
+
+	void setFilterCutoff(float damping) {
+		enable = true;
+		filter.setCutoffFrequency(damping);
+		if (damping > 19500.f) { enable = false; }
+	}
+
 
 	Array process(Array input) {
 		Array delayed;
@@ -104,7 +61,16 @@ struct MultiChannelMixedFeedback {
 		Householder<float, channels>::inPlace(mixed.data());
 
 		for (int c = 0; c < channels; ++c) {
-			float sum = input[c] + mixed[c] * decayGain;
+			float sum;
+			if (enable) {
+				float filteredSample;
+				filteredSample = filter.processSample(0, mixed[c]);
+				sum = input[c] + filteredSample * decayGain;
+			}
+			else {
+				sum = input[c] + mixed[c] * decayGain;
+			}
+			
 			delays[c].write(sum);
 		}
 
@@ -187,14 +153,18 @@ struct DiffuserHalfLengths {
 	std::array<Step, stepCount> steps;
 
 	DiffuserHalfLengths(float diffusionMs) {
-		for (auto& step : steps) {
-			diffusionMs *= 0.5;
-			step.delayMsRange = diffusionMs;
-		}
+		stepDelayUpadate(diffusionMs);
 	}
 
 	void configure(float sampleRate) {
 		for (auto& step : steps) step.configure(sampleRate);
+	}
+
+	void stepDelayUpadate(float diffusionMs) {
+		for (auto& step : steps) {
+			diffusionMs *= 0.5;
+			step.delayMsRange = diffusionMs;
+		}
 	}
 
 	Array process(Array samples) {
@@ -205,30 +175,25 @@ struct DiffuserHalfLengths {
 	}
 };
 
-template<int channels = 8, int diffusionSteps = 4>
+template<int channels = 8, int diffusionSteps = 5>
 struct BasicReverb {
 	using Array = std::array<float, channels>;
 
 	MultiChannelMixedFeedback<channels> feedback;
 	DiffuserHalfLengths<channels, diffusionSteps> diffuser;
-	float dry, wet;
+	float dry, wet,rt60, roomSizeMs, sampleRate;
 
-	BasicReverb(float roomSizeMs, float rt60, float dry = 0, float wet = 1) : diffuser(roomSizeMs), dry(dry), wet(wet) {
+	BasicReverb(float roomSizeMs, float rt60, float dry = 0, float wet = 1) 
+		: diffuser(roomSizeMs), dry(dry), wet(wet),roomSizeMs(roomSizeMs) {
 		feedback.delayMs = roomSizeMs;
-
-		// How long does our signal take to go around the feedback loop?
-		float typicalLoopMs = roomSizeMs * 1.5;
-		// How many times will it do that during our RT60 period?
-		float loopsPerRt60 = rt60 / (typicalLoopMs * 0.001);
-		// This tells us how many dB to reduce per loop
-		float dbPerCycle = -60 / loopsPerRt60;
-
-		feedback.decayGain = std::pow(10, dbPerCycle * 0.05);
+		setRt60(rt60);
 	}
 
-	void configure(float sampleRate) {
-		feedback.configure(sampleRate);
-		diffuser.configure(sampleRate);
+	void configure(const Spec& spec) {
+		feedback.configure(spec);
+		feedback.setupFilter(spec);
+		diffuser.configure(spec.sampleRate);
+		this->sampleRate = sampleRate;
 	}
 
 	Array process(Array input) {
@@ -240,4 +205,23 @@ struct BasicReverb {
 		}
 		return output;
 	}
+
+	void setRt60(float newRt60) {
+		rt60 = newRt60;
+		updateDecayGain();
+	}
+
+	void setDamping(float damping) {
+		
+		feedback.setFilterCutoff(damping);
+	}
+
+private:
+	void updateDecayGain() {
+		float typicalLoopMs = roomSizeMs * 1.5;
+		float loopsPerRt60 = rt60 / (typicalLoopMs * 0.001);
+		float dbPerCycle = -60 / loopsPerRt60;
+		feedback.decayGain = std::pow(10, dbPerCycle * 0.05);
+	}
+
 };
