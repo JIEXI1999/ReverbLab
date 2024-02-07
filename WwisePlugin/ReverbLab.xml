@@ -42,7 +42,7 @@ for the documentation about the plugin xml format
     <Properties>
       <!-- Add your property definitions here -->
       <Property Name="RT" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Reverberation Time">
-        <UserInterface Step="0.1" Fine="0.01" Decimals="2" UIMax="5" />
+        <UserInterface Step="0.1" Fine="0.01" Decimals="2" />
         <DefaultValue>0.5</DefaultValue>
         <AudioEnginePropertyID>0</AudioEnginePropertyID>
         <Restrictions>
@@ -55,7 +55,7 @@ for the documentation about the plugin xml format
         </Restrictions>
       </Property>
 		<Property Name="Damping" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Damping">
-			<UserInterface Step="1" Fine="0.1" Decimals="1" UIMax="20000" />
+			<UserInterface Step="1" Fine="0.1" Decimals="1" />
 			<DefaultValue>20000.0</DefaultValue>
 			<AudioEnginePropertyID>1</AudioEnginePropertyID>
 			<Restrictions>
@@ -68,7 +68,7 @@ for the documentation about the plugin xml format
 			</Restrictions>
 		</Property>
 		<Property Name="RoomSize" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Room Size">
-			<UserInterface Step="1" Fine="0.1" Decimals="1" UIMax="200.0" />
+			<UserInterface Decimals="1" />
 			<DefaultValue>50.0</DefaultValue>
 			<AudioEnginePropertyID>2</AudioEnginePropertyID>
 			<Restrictions>
@@ -81,7 +81,7 @@ for the documentation about the plugin xml format
 			</Restrictions>
 		</Property>
 		<Property Name="DryWetMix" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Dry/Wet" DisplayGroup="Output">
-			<UserInterface Step="0.05" Fine="0.01" Decimals="2" UIMax="1" />
+			<UserInterface Step="0.05" Fine="0.01" Decimals="2" />
 			<DefaultValue>0.5</DefaultValue>
 			<AudioEnginePropertyID>3</AudioEnginePropertyID>
 			<Restrictions>

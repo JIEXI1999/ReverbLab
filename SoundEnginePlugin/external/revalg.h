@@ -210,12 +210,10 @@ struct BasicReverb {
 	}
 
 	void setGeometry(float geometry) {
-		roomSizeMs = geometry;
-		feedback.delayMs = roomSizeMs;
-		//diffuser.stepDelayUpadate(roomSizeMs);
-		//diffuser.configure(reverbSpec.sampleRate);
-		feedback.configure(reverbSpec.sampleRate);
-		updateDecayGain();
+	}
+
+	void filterSnapToZero() {
+		filter.snapToZero();
 	}
 
 private:

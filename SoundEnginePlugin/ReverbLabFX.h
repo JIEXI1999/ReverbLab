@@ -34,6 +34,7 @@ the specific language governing permissions and limitations under the License.
 #include "external/mix.h"
 
 #include <AK/Plugin/PluginServices/AkFXTailHandler.h>
+#include <memory> 
 
 #define CHANNELS 8
 #define GAIN_CALIBR (2.0 / CHANNELS) //Calibrate gain based on matrix channels
@@ -82,7 +83,7 @@ private:
     AK::IAkEffectPluginContext* m_pContext;
 
     signalsmith::mix::StereoMultiMixer<AkReal32, CHANNELS> multiChannelMixer;
-    BasicReverb<CHANNELS, DIFFUSER_STEPS> reverb;
+    std::unique_ptr<BasicReverb<CHANNELS, DIFFUSER_STEPS>> reverb;
 };
 
 #endif // ReverbLabFX_H
