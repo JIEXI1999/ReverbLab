@@ -34,16 +34,18 @@ the specific language governing permissions and limitations under the License.
 // attributes in the xml property definition.
 static const AkPluginParamID PARAM_RT_ID = 0;
 static const AkPluginParamID PARAM_DAMPING_ID = 1;
-static const AkPluginParamID PARAM_ROOMSIZE_ID = 2;
+static const AkPluginParamID PARAM_STEREOWIDTH_ID = 2;
 static const AkPluginParamID PARAM_DRYWETMIX_ID = 3;
-static const AkUInt32 NUM_PARAMS = 4;
+static const AkPluginParamID PARAM_OUTPUTGAIN = 4;
+static const AkUInt32 NUM_PARAMS = 5;
 
 struct ReverbLabRTPCParams
 {
     AkReal32 fRT;
     AkReal32 fDamping;
-    AkReal32 fRoomSize;
+    AkReal32 fStereoWidth;
     AkReal32 fDryWetMix;
+    AkReal32 fOutputGain;
 };
 
 struct ReverbLabNonRTPCParams

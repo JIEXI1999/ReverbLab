@@ -6,7 +6,6 @@
 #include <cstdlib>
 
 float randomInRange(float low, float high) {
-	// There are better randoms than this, and you should use them instead 😛
 	float unitRand = rand() / float(RAND_MAX);
 	return low + unitRand * (high - low);
 }
@@ -161,10 +160,10 @@ struct BasicReverb {
 	juce::dsp::FirstOrderTPTFilter<float> filter;
 	bool enable = false;
 
-	float dry, wet,rt60, roomSizeMs, sampleRate;
+	float rt60, roomSizeMs, sampleRate;
 
-	BasicReverb(float roomSizeMs, float rt60, float dry = 0, float wet = 1) 
-		: diffuser(roomSizeMs), dry(dry), wet(wet),roomSizeMs(roomSizeMs) {
+	BasicReverb(float roomSizeMs, float rt60) 
+		: diffuser(roomSizeMs),roomSizeMs(roomSizeMs) {
 		feedback.delayMs = roomSizeMs;
 		setRt60(rt60);
 	}
@@ -184,9 +183,9 @@ struct BasicReverb {
 		for (int c = 0; c < channels; ++c) {
 			if (enable){
 				float filteredOutput = filter.processSample(c%2, longLasting[c]);
-				output[c] = dry * input[c] + wet * filteredOutput;
+				output[c] = filteredOutput;
 			}
-			else { output[c] = dry * input[c] + wet * longLasting[c]; }
+			else { output[c] = longLasting[c]; }
 		}
 		return output;
 	}
@@ -195,7 +194,7 @@ struct BasicReverb {
 		filter.prepare(reverbSpec);
 		filter.reset();
 		filter.setType(juce::dsp::FirstOrderTPTFilterType::lowpass);
-		filter.setCutoffFrequency(20000.f);
+		filter.setCutoffFrequency(12000.f);
 	}
 
 	void setRt60(float newRt60) {
@@ -206,7 +205,7 @@ struct BasicReverb {
 	void setDamping(float damping) {
 		enable = true;
 		filter.setCutoffFrequency(damping);
-		if (damping > 19500.f) { enable = false; }
+		if (damping > 11500.f) { enable = false; }
 	}
 
 	void setGeometry(float geometry) {
@@ -220,7 +219,7 @@ private:
 	void updateDecayGain() {
 		float typicalLoopMs = roomSizeMs * 1.5;
 		float loopsPerRt60 = rt60 / (typicalLoopMs * 0.001);
-		float dbPerCycle = -60 / loopsPerRt60;
+		float dbPerCycle = -45 / loopsPerRt60;
 		feedback.decayGain = std::pow(10, dbPerCycle * 0.05);
 	}
 

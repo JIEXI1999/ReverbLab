@@ -41,7 +41,7 @@ for the documentation about the plugin xml format
     </PluginInfo>
     <Properties>
       <!-- Add your property definitions here -->
-      <Property Name="RT" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Reverberation Time">
+      <Property Name="RT" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Decay Time">
         <UserInterface Step="0.1" Fine="0.01" Decimals="2" />
         <DefaultValue>0.5</DefaultValue>
         <AudioEnginePropertyID>0</AudioEnginePropertyID>
@@ -54,41 +54,54 @@ for the documentation about the plugin xml format
           </ValueRestriction>
         </Restrictions>
       </Property>
-		<Property Name="Damping" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Damping">
-			<UserInterface Step="1" Fine="0.1" Decimals="1" />
-			<DefaultValue>20000.0</DefaultValue>
+		<Property Name="Damping" Type="Real32" SupportRTPCType="Exclusive" DataMeaning="Frequency" DisplayName="Damping">
+			<UserInterface Step="1" Decimals="1" SliderType="5" />
+			<DefaultValue>12000.0</DefaultValue>
 			<AudioEnginePropertyID>1</AudioEnginePropertyID>
 			<Restrictions>
 				<ValueRestriction>
 					<Range Type="Real32">
-						<Min>200.0</Min>
-						<Max>20000.0</Max>
+						<Min>20.0</Min>
+						<Max>12000.0</Max>
 					</Range>
 				</ValueRestriction>
 			</Restrictions>
 		</Property>
-		<Property Name="RoomSize" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Room Size">
-			<UserInterface Decimals="1" />
-			<DefaultValue>50.0</DefaultValue>
+		<Property Name="StereoWidth" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Stereo Width">
+			<UserInterface Step="0.1"  Decimals="1" />
+			<DefaultValue>1.0</DefaultValue>
 			<AudioEnginePropertyID>2</AudioEnginePropertyID>
 			<Restrictions>
 				<ValueRestriction>
 					<Range Type="Real32">
-						<Min>20.0</Min>
-						<Max>200.0</Max>
+						<Min>0.0</Min>
+						<Max>2.5</Max>
 					</Range>
 				</ValueRestriction>
 			</Restrictions>
 		</Property>
-		<Property Name="DryWetMix" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Dry/Wet" DisplayGroup="Output">
-			<UserInterface Step="0.05" Fine="0.01" Decimals="2" />
-			<DefaultValue>0.5</DefaultValue>
+		<Property Name="DryWetMix" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Dry/Wet %" DisplayGroup="Output">
+			<UserInterface Step="1"  />
+			<DefaultValue>50</DefaultValue>
 			<AudioEnginePropertyID>3</AudioEnginePropertyID>
 			<Restrictions>
 				<ValueRestriction>
 					<Range Type="Real32">
 						<Min>0.0</Min>
-						<Max>1.0</Max>
+						<Max>100.0</Max>
+					</Range>
+				</ValueRestriction>
+			</Restrictions>
+		</Property>
+		<Property Name="OutputGain" Type="Real32" SupportRTPCType="Exclusive" DisplayName="Output Gain" DisplayGroup="Output">
+			<UserInterface Step="1" Decimals="1" SliderType="15"  />
+			<DefaultValue>0.0</DefaultValue>
+			<AudioEnginePropertyID>4</AudioEnginePropertyID>
+			<Restrictions>
+				<ValueRestriction>
+					<Range Type="Real32">
+						<Min>-24.0</Min>
+						<Max>24.0</Max>
 					</Range>
 				</ValueRestriction>
 			</Restrictions>

@@ -1,0 +1,21 @@
+INFO:build_property_help_logger:
+INFO:build_property_help_logger:>>>>> Starting WwisePlugin\ReverbLab.xml
+INFO:build_property_help_logger:
+INFO:build_property_help_logger:Parsing WwisePlugin\res\Md\en\RT.md
+INFO:build_property_help_logger:Created WwisePlugin\res\Html\en\RT.html
+INFO:build_property_help_logger:
+INFO:build_property_help_logger:Checking for missing Markdown files for WwisePlugin\ReverbLab.xml
+INFO:build_property_help_logger:Damping
+INFO:build_property_help_logger:StereoWidth
+INFO:build_property_help_logger:DryWetMix
+INFO:build_property_help_logger:OutputGain
+INFO:build_property_help_logger:Missing markdown files for WwisePlugin\ReverbLab.xml: 4
+INFO:build_property_help_logger:Parsing WwisePlugin\res\Md\zh\Damping.md
+INFO:build_property_help_logger:Created WwisePlugin\res\Html\zh\Damping.html
+INFO:build_property_help_logger:Parsing WwisePlugin\res\Md\zh\RT.md
+INFO:build_property_help_logger:Created WwisePlugin\res\Html\zh\RT.html
+INFO:build_property_help_logger:Parsing WwisePlugin\res\Md\zh\StereoWidth.md
+INFO:build_property_help_logger:Created WwisePlugin\res\Html\zh\StereoWidth.html
+INFO:build_property_help_logger:
+INFO:build_property_help_logger:>>>>> Finished WwisePlugin\ReverbLab.xml
+INFO:build_property_help_logger:

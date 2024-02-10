@@ -36,9 +36,11 @@ the specific language governing permissions and limitations under the License.
 #include <AK/Plugin/PluginServices/AkFXTailHandler.h>
 #include <memory> 
 
+//Delayline setup
 #define CHANNELS 8
-#define GAIN_CALIBR (2.0 / CHANNELS) //Calibrate gain based on matrix channels
 #define DIFFUSER_STEPS 5
+//Calibrate reverb gain based on matrix channels
+#define GAIN_CALIBR (2.0 / CHANNELS) 
 
 using namespace juce::dsp;
 
@@ -75,13 +77,17 @@ public:
     AKRESULT TimeSkip(AkUInt32 in_uFrames) override;
 
 private:
+    // Utilities
     juce::dsp::ProcessSpec spec;
     AkFXTailHandler	m_FXTailHandler;
-
     ReverbLabFXParams* m_pParams;
+
+    // SDK Plugin Interface
     AK::IAkPluginMemAlloc* m_pAllocator;
     AK::IAkEffectPluginContext* m_pContext;
 
+    //DSP Classes
+    juce::dsp::Gain<AkReal32> outputGain;
     signalsmith::mix::StereoMultiMixer<AkReal32, CHANNELS> multiChannelMixer;
     std::unique_ptr<BasicReverb<CHANNELS, DIFFUSER_STEPS>> reverb;
 };

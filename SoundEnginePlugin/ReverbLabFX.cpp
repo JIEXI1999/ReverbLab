@@ -46,7 +46,8 @@ ReverbLabFX::ReverbLabFX()
     , m_pAllocator(nullptr)
     , m_pContext(nullptr)
 {
-        reverb = std::make_unique<BasicReverb<CHANNELS, DIFFUSER_STEPS>>(80, 2.0, 0.5, 0.5);
+    // Reverb constructor
+    reverb = std::make_unique<BasicReverb<CHANNELS, DIFFUSER_STEPS>>(48, 2.0);
 }
 
 ReverbLabFX::~ReverbLabFX()
@@ -59,10 +60,15 @@ AKRESULT ReverbLabFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::IAkEffectPl
     m_pAllocator = in_pAllocator;
     m_pContext = in_pContext;
 
+    // Configure ProcessSpec. Default block size for Authoring is 512
     spec.maximumBlockSize = 512;
     spec.sampleRate = in_rFormat.uSampleRate;
     spec.numChannels = 1;
 
+    // Init using ProcessSpec
+    outputGain.prepare(spec);
+    outputGain.setGainDecibels(0.f);
+    outputGain.setRampDurationSeconds(0.2f);
     reverb->configure(spec);
 
     return AK_Success;
@@ -90,26 +96,21 @@ AKRESULT ReverbLabFX::GetPluginInfo(AkPluginInfo& out_rPluginInfo)
 
 void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
 {
+    // Configure tail handler (reverb length) after input cutoff
     AkUInt32 totalTailFrames = spec.sampleRate * m_pParams->RTPC.fRT;
     m_FXTailHandler.HandleTail(io_pBuffer, totalTailFrames);
-    const AkUInt32 uNumChannels = io_pBuffer->NumChannels();
 
-    //if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_ROOMSIZE_ID))
-    //{
-    //    io_pBuffer->ClearData();
-    //    reverb = std::make_unique<BasicReverb<CHANNELS, DIFFUSER_STEPS>>(m_pParams->RTPC.fRoomSize, 4.0, 0.5, 0.5);
-    //    reverb->configure(spec);
-    //}
-
-    AkUInt16 uFramesProcessed;
-    uFramesProcessed = 0;
+    const AkUInt32 uNumChannels = io_pBuffer->NumChannels();    // input channels (default: 2)
+    AkUInt16 uFramesProcessed = 0;                              // current sample index
     while (uFramesProcessed < io_pBuffer->uValidFrames)
     {
+        // Save stereo and multichannel (for reverb calculation) input and output
         std::array<AkReal32, 2> stereoInput;
         std::array<AkReal32, 2> stereoOutput;
-        std::array<AkReal32, 8> multiChannelInput;
-        std::array<AkReal32, 8> multiChannelOutput;
+        std::array<AkReal32, CHANNELS> multiChannelInput;
+        std::array<AkReal32, CHANNELS> multiChannelOutput;
 
+        // Stereo input of current sample; Expand up to 8 channels based on sinusoidal coefficient;
         for (AkUInt32 i = 0; i < uNumChannels; ++i)
         {
             AkReal32* AK_RESTRICT pBuf = (AkReal32 * AK_RESTRICT)io_pBuffer->GetChannel(i);
@@ -117,40 +118,50 @@ void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
         }
         multiChannelMixer.stereoToMulti(stereoInput, multiChannelInput);
 
+        // If Decay Time or Damping parameter has changed，reinvoke related setup function
         if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_RT_ID))
         {
             reverb->setRt60(m_pParams->RTPC.fRT);
         }
-
         if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_DAMPING_ID))
         {
             reverb->setDamping(m_pParams->RTPC.fDamping);
         }
-        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_DRYWETMIX_ID))
+        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_OUTPUTGAIN))
         {
-            reverb->wet = m_pParams->RTPC.fDryWetMix;
-            reverb->dry = 1.f - reverb->wet;
+            outputGain.setGainDecibels(m_pParams->RTPC.fOutputGain);
         }
 
+        // Call reverb algorithm (see revalg.h). Downmix back to stereo after processing.
         multiChannelOutput = reverb->process(multiChannelInput);
-
         multiChannelMixer.multiToStereo(multiChannelOutput, stereoOutput);
 
-        //stereo widening
+        // Get obtained wet signals  
+        AkReal32 revL = static_cast<AkReal32>(stereoOutput[0]) * GAIN_CALIBR;
+        AkReal32 revR = static_cast<AkReal32>(stereoOutput[1]) * GAIN_CALIBR;
+
+        // Transfer L-R signal to M-S encoding for stereo expanding or narrowing
+        AkReal32 revM = (revL + revR)*0.5;
+        AkReal32 revS = (revL - revR)*0.5* m_pParams->RTPC.fStereoWidth;
+        
+        // Get data store in left-right channel buffer
         AkReal32* AK_RESTRICT pBufL = (AkReal32 * AK_RESTRICT)io_pBuffer->GetChannel(0);
         AkReal32* AK_RESTRICT pBufR = (AkReal32 * AK_RESTRICT)io_pBuffer->GetChannel(1);
-        AkReal32 width = 0.5;
-        AkReal32 lS = static_cast<AkReal32>(stereoOutput[0]) * GAIN_CALIBR;
-        AkReal32 rS = static_cast<AkReal32>(stereoOutput[1]) * GAIN_CALIBR;
-        AkReal32 mS = (lS + rS)*0.5;
-        AkReal32 sS = (lS - rS)*0.5*width;
-        
-        pBufL[uFramesProcessed] = mS - sS;
-        pBufR[uFramesProcessed] = mS + sS;
 
+        // Calculate dry wet mix
+        AkReal32 dryMix = 1.0f - m_pParams->RTPC.fDryWetMix / 100.f;
+        AkReal32 wetMix = m_pParams->RTPC.fDryWetMix / 100.f;
+
+        // Transfer M-S back to L-R and apply output gain
+        pBufL[uFramesProcessed] = outputGain.processSample(pBufL[uFramesProcessed] * dryMix + (revM - revS)* wetMix);
+        pBufR[uFramesProcessed] = outputGain.processSample(pBufR[uFramesProcessed] * dryMix + (revM + revS) * wetMix);
+
+        // End the loop, proceed to next sample.
         ++uFramesProcessed;
 
-        if (uFramesProcessed % 128 == 0)
+        // Periodically call snapToZero function of TPTFilter, optimize unnecessary negligible resources allocation; 
+        // Also solved potential clipping issues when adjusting filter cutoff on real-time;
+        if (uFramesProcessed % 256 == 0)
         {
             reverb->filterSnapToZero();
         }
