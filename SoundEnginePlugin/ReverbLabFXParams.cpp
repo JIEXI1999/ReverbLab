@@ -54,7 +54,8 @@ AKRESULT ReverbLabFXParams::Init(AK::IAkPluginMemAlloc* in_pAllocator, const voi
     {
         // Initialize default parameters here
         RTPC.fRT = 0.5f; 
-        RTPC.fDamping = 12000.f;
+        RTPC.fHFCutoff = 15000.f;
+        RTPC.fHFAttenuation = 0.f;
         RTPC.fStereoWidth = 1.f;
         RTPC.fDryWetMix = 50.f;
         RTPC.fOutputGain = 0.f;
@@ -78,7 +79,8 @@ AKRESULT ReverbLabFXParams::SetParamsBlock(const void* in_pParamsBlock, AkUInt32
 
     // Read bank data here
     RTPC.fRT = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
-    RTPC.fDamping = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
+    RTPC.fHFCutoff = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
+    RTPC.fHFAttenuation = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
     RTPC.fStereoWidth = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
     RTPC.fDryWetMix = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
     RTPC.fOutputGain = READBANKDATA(AkReal32, pParamsBlock, in_ulBlockSize);
@@ -99,9 +101,13 @@ AKRESULT ReverbLabFXParams::SetParam(AkPluginParamID in_paramID, const void* in_
         RTPC.fRT = *((AkReal32*)in_pValue);
         m_paramChangeHandler.SetParamChange(PARAM_RT_ID);
         break;
-    case PARAM_DAMPING_ID:
-        RTPC.fDamping = *((AkReal32*)in_pValue);
-        m_paramChangeHandler.SetParamChange(PARAM_DAMPING_ID);
+    case PARAM_HFCUTOFF_ID:
+        RTPC.fHFCutoff = *((AkReal32*)in_pValue);
+        m_paramChangeHandler.SetParamChange(PARAM_HFCUTOFF_ID);
+        break;
+    case PARAM_HFATTENUATION_ID:
+        RTPC.fHFAttenuation = *((AkReal32*)in_pValue);
+        m_paramChangeHandler.SetParamChange(PARAM_HFATTENUATION_ID);
         break;
     case PARAM_STEREOWIDTH_ID:
         RTPC.fStereoWidth = *((AkReal32*)in_pValue);

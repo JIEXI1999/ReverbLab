@@ -47,7 +47,7 @@ ReverbLabFX::ReverbLabFX()
     , m_pContext(nullptr)
 {
     // Reverb constructor
-    reverb = std::make_unique<BasicReverb<CHANNELS, DIFFUSER_STEPS>>(48, 2.0);
+    reverb = std::make_unique<BasicReverb<CHANNELS, DIFFUSER_STEPS>>(ROOM_SIZE, 2.0);
 }
 
 ReverbLabFX::~ReverbLabFX()
@@ -96,7 +96,7 @@ AKRESULT ReverbLabFX::GetPluginInfo(AkPluginInfo& out_rPluginInfo)
 
 void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
 {
-    // Configure tail handler (reverb length) after input cutoff
+    // Configure tail handler based on reverb length after input cutoff
     AkUInt32 totalTailFrames = spec.sampleRate * m_pParams->RTPC.fRT;
     m_FXTailHandler.HandleTail(io_pBuffer, totalTailFrames);
 
@@ -118,15 +118,18 @@ void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
         }
         multiChannelMixer.stereoToMulti(stereoInput, multiChannelInput);
 
-        // If Decay Time or Damping parameter has changed，reinvoke related setup function
+        // If Decay Time has changed，reinvoke related setup function
         if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_RT_ID))
         {
             reverb->setRt60(m_pParams->RTPC.fRT);
         }
-        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_DAMPING_ID))
+        // If Damping parameters changed, recalculate coefficients and update HS filter
+        if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_HFCUTOFF_ID)|| 
+            m_pParams->m_paramChangeHandler.HasChanged(PARAM_HFATTENUATION_ID))
         {
-            reverb->setDamping(m_pParams->RTPC.fDamping);
+            reverb->setDamping(m_pParams->RTPC.fHFCutoff, m_pParams->RTPC.fHFAttenuation);
         }
+        // Same for output gain
         if (m_pParams->m_paramChangeHandler.HasChanged(PARAM_OUTPUTGAIN))
         {
             outputGain.setGainDecibels(m_pParams->RTPC.fOutputGain);
@@ -159,8 +162,7 @@ void ReverbLabFX::Execute(AkAudioBuffer* io_pBuffer)
         // End the loop, proceed to next sample.
         ++uFramesProcessed;
 
-        // Periodically call snapToZero function of TPTFilter, optimize unnecessary negligible resources allocation; 
-        // Also solved potential clipping issues when adjusting filter cutoff on real-time;
+        // Periodically call snapToZero function of IIR Filter, optimize unnecessary resource allocation; 
         if (uFramesProcessed % 256 == 0)
         {
             reverb->filterSnapToZero();

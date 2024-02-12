@@ -2,6 +2,6 @@
 
 混响信号立体声宽度
 
-**Note**: Additional note goes here...
+通常取决于双耳信号的相关程度即侧向反射声能量比值。适当调低可以增强定位感
 
-Units: sec <br/>
+单位：\ <br/>

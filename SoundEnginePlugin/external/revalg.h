@@ -12,6 +12,8 @@ float randomInRange(float low, float high) {
 
 // This is a simple delay class which rounds to a whole number of samples.
 using Delay = signalsmith::delay::Delay<float, signalsmith::delay::InterpolatorNearest>;
+using Spec = juce::dsp::ProcessSpec;
+using IIRF = juce::dsp::IIR::Filter<float>;
 
 template<int channels = 8>
 struct MultiChannelMixedFeedback {
@@ -25,13 +27,13 @@ struct MultiChannelMixedFeedback {
 	void configure(float sampleRate) {
 		float delaySamplesBase = delayMs * 0.001 * sampleRate;
 		for (int c = 0; c < channels; ++c) {
+			// Distribute delay times exponentially between delayMs and 2*delayMs
 			float r = c * 1.0 / channels;
 			delaySamples[c] = std::pow(2, r) * delaySamplesBase;
 			delays[c].resize(delaySamples[c] + 1);
 			delays[c].reset();
 		}
 	}
-
 
 	Array process(Array input) {
 		Array delayed;
@@ -73,12 +75,15 @@ struct DiffusionStep {
 		}
 	}
 
-	Array process(Array input) {
+	// Decorrelate each channel's signal as much as possible for natural sounding
+	Array process(Array input, IIRF& dampingFilter, bool enableDamping) {
 		// Delay
 		Array delayed;
 		for (int c = 0; c < channels; ++c) {
 			delays[c].write(input[c]);
 			delayed[c] = delays[c].read(delaySamples[c]);
+			if (enableDamping) 
+				delayed[c] = dampingFilter.processSample(delayed[c]);
 		}
 
 		// Mix with a Hadamard matrix
@@ -94,6 +99,7 @@ struct DiffusionStep {
 	}
 };
 
+// Alternative to DiffuserHalfLengths. Not used in my plugin
 template<int channels = 8, int stepCount = 4>
 struct DiffuserEqualLengths {
 	using Array = std::array<float, channels>;
@@ -136,14 +142,17 @@ struct DiffuserHalfLengths {
 
 	void stepDelayUpadate(float diffusionMs) {
 		for (auto& step : steps) {
-			diffusionMs *= 0.5;
+			// This is adjustable before compiling if you want to change diffuse length pattern
+			// Use 0.5 for half length every step
+			diffusionMs *= 0.5; 
+			// Use value defined above to initialize every single diffuser
 			step.delayMsRange = diffusionMs;
 		}
 	}
 
-	Array process(Array samples) {
+	Array process(Array samples, IIRF& dampingFilter, bool enableDamping) {
 		for (auto& step : steps) {
-			samples = step.process(samples);
+			samples = step.process(samples, dampingFilter, enableDamping);
 		}
 		return samples;
 	}
@@ -151,17 +160,18 @@ struct DiffuserHalfLengths {
 
 template<int channels = 8, int diffusionSteps = 5>
 struct BasicReverb {
+	// Holding 8 channels' current sample
 	using Array = std::array<float, channels>;
-	using Spec = juce::dsp::ProcessSpec;
 
 	Spec reverbSpec;
 	MultiChannelMixedFeedback<channels> feedback;
 	DiffuserHalfLengths<channels, diffusionSteps> diffuser;
-	juce::dsp::FirstOrderTPTFilter<float> filter;
-	bool enable = false;
+	juce::dsp::IIR::Filter<float> highShelfFilter;
+	bool enableDamping = false;
 
 	float rt60, roomSizeMs, sampleRate;
 
+	// Constructor
 	BasicReverb(float roomSizeMs, float rt60) 
 		: diffuser(roomSizeMs),roomSizeMs(roomSizeMs) {
 		feedback.delayMs = roomSizeMs;
@@ -169,6 +179,7 @@ struct BasicReverb {
 	}
 
 	void configure(const Spec& spec) {
+		// Setup BasicReverb when Init()
 		reverbSpec = spec;
 		feedback.configure(reverbSpec.sampleRate);
 		diffuser.configure(reverbSpec.sampleRate);
@@ -177,49 +188,59 @@ struct BasicReverb {
 	}
 
 	Array process(Array input) {
-		Array diffuse = diffuser.process(input);
+		// Do diffuse and feedback processing successively for input signals
+		Array diffuse = diffuser.process(input, highShelfFilter, enableDamping);
 		Array longLasting = feedback.process(diffuse);
 		Array output;
 		for (int c = 0; c < channels; ++c) {
-			if (enable){
-				float filteredOutput = filter.processSample(c%2, longLasting[c]);
-				output[c] = filteredOutput;
-			}
-			else { output[c] = longLasting[c]; }
+			output[c] = longLasting[c];
 		}
 		return output;
 	}
 
 	void setupFilter() {
-		filter.prepare(reverbSpec);
-		filter.reset();
-		filter.setType(juce::dsp::FirstOrderTPTFilterType::lowpass);
-		filter.setCutoffFrequency(12000.f);
+		// Setup filter with default values when Init()
+		highShelfFilter.reset();
+		highShelfFilter.prepare(reverbSpec);
+		auto coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf
+		(reverbSpec.sampleRate, 15000.f, 0.5f, juce::Decibels::decibelsToGain(0.f));
+		highShelfFilter.coefficients = coefficients;
 	}
 
 	void setRt60(float newRt60) {
 		rt60 = newRt60;
+		// recalculate decay gain if decay time changed
 		updateDecayGain();
 	}
 
-	void setDamping(float damping) {
-		enable = true;
-		filter.setCutoffFrequency(damping);
-		if (damping > 11500.f) { enable = false; }
+	void setDamping(float cutoff, float attenuation) {
+		enableDamping = true;
+		// recalculate filter coefficients if HFCutoff or HFAttenuation updated by user
+		auto coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf
+		(reverbSpec.sampleRate, cutoff, 0.5f, juce::Decibels::decibelsToGain(-attenuation));
+		highShelfFilter.coefficients = coefficients;
+		// reset filter's state everytime assigning new coefficients to avoid artifacts like clipping
+		highShelfFilter.reset();
+		// if damping is unneeded, turn off filter for optimization purpose
+		if (cutoff > 14999.f) enableDamping = false;
 	}
 
 	void setGeometry(float geometry) {
 	}
 
 	void filterSnapToZero() {
-		filter.snapToZero();
+		highShelfFilter.snapToZero();
 	}
 
 private:
 	void updateDecayGain() {
+		// How long does our signal take to go around the feedback loop?
 		float typicalLoopMs = roomSizeMs * 1.5;
+		// How many times will it do that during our RT60 period?
 		float loopsPerRt60 = rt60 / (typicalLoopMs * 0.001);
+		// This tells us how many dB to reduce per loop
 		float dbPerCycle = -45 / loopsPerRt60;
+
 		feedback.decayGain = std::pow(10, dbPerCycle * 0.05);
 	}
 

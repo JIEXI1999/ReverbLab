@@ -1,7 +1,7 @@
 ##RT Parameter
 
-混响信号衰减时间
+输入信号截止后，声音自原始值衰变到听觉阈值以下（-60dB）所花费的时间
 
-**Note**: Additional note goes here...
+**Note**: 不同Damping设置可能导致该值与实际听感有所偏差
 
-Units: 秒 <br/>
+单位: 秒 <br/>

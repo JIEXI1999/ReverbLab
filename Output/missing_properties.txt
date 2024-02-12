@@ -1,7 +1,8 @@
 
 Checking for missing Markdown files for WwisePlugin\ReverbLab.xml:
-Damping
+HFCutoff
+HFAttenuation
 StereoWidth
 DryWetMix
 OutputGain
-Missing markdown files for WwisePlugin\ReverbLab.xml: 4
+Missing markdown files for WwisePlugin\ReverbLab.xml: 5

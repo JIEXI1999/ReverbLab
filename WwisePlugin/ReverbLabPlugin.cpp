@@ -39,7 +39,8 @@ bool ReverbLabPlugin::GetBankParameters(const GUID & in_guidPlatform, AK::Wwise:
 {
     // Write bank data here
     in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "RT"));
-    in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "Damping"));
+    in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "HFCutoff"));
+    in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "HFAttenuation"));
     in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "StereoWidth"));
     in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "DryWetMix"));
     in_dataWriter.WriteReal32(m_propertySet.GetReal32(in_guidPlatform, "OutputGain"));

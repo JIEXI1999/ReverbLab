@@ -5,6 +5,7 @@ JuceModules/juce_audio_formats/
 JuceModules/juce_audio_basics/
 .vscode/
 Help/
+Output/
 .vs/
 
 # Ignored File Types

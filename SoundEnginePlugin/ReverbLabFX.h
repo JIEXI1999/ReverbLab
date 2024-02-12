@@ -36,11 +36,12 @@ the specific language governing permissions and limitations under the License.
 #include <AK/Plugin/PluginServices/AkFXTailHandler.h>
 #include <memory> 
 
-//Delayline setup
+// Delayline setup. These static parameters should be defined before compiling
 #define CHANNELS 8
 #define DIFFUSER_STEPS 5
-//Calibrate reverb gain based on matrix channels
-#define GAIN_CALIBR (2.0 / CHANNELS) 
+#define ROOM_SIZE 48.f
+// Calibrate reverb gain based on matrix channels
+#define GAIN_CALIBR (4.0 / CHANNELS) 
 
 using namespace juce::dsp;
 
